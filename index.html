@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistem Tiket Permintaan</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3347;
+    --accent: #4f8ef7;
+    --accent2: #f7914f;
+    --danger: #f75f5f;
+    --success: #4fd68e;
+    --warning: #f7c94f;
+    --info: #4fc9f7;
+    --text: #e8ecf4;
+    --text-muted: #6b7494;
+    --text-dim: #3d4460;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* HEADER */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; align-items: center; gap: 24px; height: 60px; position: sticky; top: 0; z-index: 100; }
+  .logo { font-family: var(--mono); font-weight: 600; font-size: 15px; color: var(--accent); letter-spacing: 0.04em; white-space: nowrap; }
+  .logo span { color: var(--text-muted); }
+  nav { display: flex; gap: 4px; margin-left: 16px; }
+  nav button { background: none; border: none; cursor: pointer; font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--text-muted); padding: 6px 16px; border-radius: 6px; transition: all .15s; letter-spacing: 0.02em; }
+  nav button:hover { background: var(--surface2); color: var(--text); }
+  nav button.active { background: var(--accent); color: #fff; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .ticket-count { font-family: var(--mono); font-size: 12px; color: var(--text-muted); background: var(--surface2); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); }
+
+  /* LAYOUT */
+  main { flex: 1; }
+  .page { display: none; padding: 32px; max-width: 960px; margin: 0 auto; width: 100%; }
+  .page.active { display: block; }
+  #page-list { max-width: 1120px; }
+
+  .page-title { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 24px; display: flex; align-items: center; gap: 8px; }
+  .page-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* FORM */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; font-family: var(--mono); }
+  label .req { color: var(--accent2); margin-left: 2px; }
+  input, textarea, select { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--sans); font-size: 14px; padding: 10px 14px; transition: border-color .15s, box-shadow .15s; outline: none; width: 100%; }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,142,247,0.12); }
+  textarea { resize: vertical; min-height: 90px; }
+  select { cursor: pointer; }
+  select option { background: var(--surface2); }
+
+  /* Pemohon */
+  .pemohon-block { display: flex; flex-direction: column; gap: 8px; }
+  .pemohon-name-row { display: flex; gap: 8px; align-items: center; }
+  .pemohon-name-row input { flex: 1; }
+  .role-toggle { display: flex; gap: 4px; flex-shrink: 0; }
+  .role-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 11px; font-weight: 600; font-family: var(--mono); padding: 10px 12px; cursor: pointer; transition: all .15s; white-space: nowrap; letter-spacing: 0.04em; }
+  .role-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .role-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .wa-row { display: flex; align-items: stretch; }
+  .wa-prefix { background: var(--surface2); border: 1px solid var(--border); border-right: none; border-radius: 8px 0 0 8px; color: var(--text-muted); font-family: var(--mono); font-size: 13px; padding: 10px 12px; white-space: nowrap; flex-shrink: 0; display: flex; align-items: center; }
+  .wa-row input { border-radius: 0 8px 8px 0; flex: 1; }
+
+  /* Priority */
+  .priority-row { display: flex; gap: 8px; }
+  .priority-btn { flex: 1; background: var(--surface2); border: 2px solid var(--border); border-radius: 8px; color: var(--text-muted); font-family: var(--mono); font-size: 13px; font-weight: 600; padding: 10px 0; cursor: pointer; text-align: center; transition: all .15s; }
+  .priority-btn[data-p="3"]:hover, .priority-btn[data-p="3"].active { border-color: var(--success); color: var(--success); background: rgba(79,214,142,.08); }
+  .priority-btn[data-p="4"]:hover, .priority-btn[data-p="4"].active { border-color: var(--warning); color: var(--warning); background: rgba(247,201,79,.08); }
+  .priority-btn[data-p="5"]:hover, .priority-btn[data-p="5"].active { border-color: var(--danger); color: var(--danger); background: rgba(247,95,95,.08); }
+  .priority-label { font-size: 10px; display: block; font-weight: 400; margin-top: 2px; opacity: .7; }
+
+  /* Jenis */
+  .jenis-row { display: flex; gap: 8px; align-items: flex-start; }
+  .jenis-row select { flex: 0 0 160px; }
+  #lainnya-input { flex: 1; display: none; }
+
+  /* Buttons */
+  .btn-submit { background: var(--accent); border: none; border-radius: 8px; color: #fff; cursor: pointer; font-family: var(--sans); font-size: 14px; font-weight: 600; padding: 12px 32px; transition: all .15s; letter-spacing: 0.02em; display: flex; align-items: center; gap: 8px; }
+  .btn-submit:hover { background: #3a7de8; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(79,142,247,.3); }
+  .btn-submit:active { transform: none; }
+  .btn-reset { background: none; border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); cursor: pointer; font-family: var(--sans); font-size: 13px; font-weight: 500; padding: 12px 20px; transition: all .15s; }
+  .btn-reset:hover { border-color: var(--danger); color: var(--danger); }
+  .form-footer { margin-top: 28px; display: flex; justify-content: flex-end; gap: 12px; align-items: center; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 28px; right: 28px; color: #0f1117; font-family: var(--mono); font-size: 13px; font-weight: 600; padding: 12px 24px; border-radius: 8px; transform: translateY(80px); opacity: 0; transition: all .3s cubic-bezier(.34,1.56,.64,1); z-index: 999; pointer-events: none; background: var(--success); }
+  .toast.show { transform: none; opacity: 1; }
+  .toast.error { background: var(--danger); color: #fff; }
+  .toast.info { background: var(--info); }
+
+  /* STATS */
+  .stats-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .stat-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+  .stat-value { font-family: var(--mono); font-size: 22px; font-weight: 600; color: var(--text); }
+  .c-accent { color: var(--accent) !important; }
+  .c-info { color: var(--info) !important; }
+  .c-success { color: var(--success) !important; }
+  .c-danger { color: var(--danger) !important; }
+  .c-warning { color: var(--warning) !important; }
+
+  /* LIST TOOLBAR */
+  .list-toolbar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  .search-box { flex: 1; min-width: 300px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--sans); font-size: 14px; padding: 11px 16px; outline: none; transition: border-color .15s, box-shadow .15s; }
+  .search-box:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,142,247,0.10); }
+  .search-box::placeholder { color: var(--text-dim); }
+  .filter-select { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); font-family: var(--sans); font-size: 13px; padding: 11px 12px; outline: none; cursor: pointer; }
+  .filter-select:focus { border-color: var(--accent); }
+  .toolbar-right { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+  .btn-sm { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); cursor: pointer; font-size: 12px; font-family: var(--mono); font-weight: 500; padding: 7px 14px; transition: all .15s; letter-spacing: 0.04em; }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-sm.d:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* TICKET CARD */
+  .ticket-card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; display: grid; grid-template-columns: 130px 1fr auto; gap: 0 14px; align-items: center; transition: border-color .15s; cursor: pointer; }
+  .ticket-card:hover { border-color: var(--accent); border-left-color: var(--accent); }
+  .ticket-card.s-Baru { border-left-color: var(--accent); }
+  .ticket-card.s-Dijadwalkan { border-left-color: var(--info); }
+  .ticket-card.s-Selesai { border-left-color: var(--success); opacity: .8; }
+  .ticket-card.s-Cancel { border-left-color: var(--danger); opacity: .65; }
+
+  .ticket-id-col { display: flex; flex-direction: column; gap: 5px; }
+  .ticket-id { font-family: var(--mono); font-size: 11px; color: var(--accent); font-weight: 600; line-height: 1.3; }
+  .ticket-date-sm { font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
+
+  .badge { font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.05em; display: inline-block; }
+  .badge-jenis { background: rgba(79,142,247,.15); color: var(--accent); }
+  .badge-p3 { background: rgba(79,214,142,.15); color: var(--success); }
+  .badge-p4 { background: rgba(247,201,79,.15); color: var(--warning); }
+  .badge-p5 { background: rgba(247,95,95,.15); color: var(--danger); }
+  .badge-s-Baru { background: rgba(79,142,247,.12); color: var(--accent); }
+  .badge-s-Dijadwalkan { background: rgba(79,201,247,.15); color: var(--info); }
+  .badge-s-Selesai { background: rgba(79,214,142,.15); color: var(--success); }
+  .badge-s-Cancel { background: rgba(247,95,95,.12); color: var(--danger); }
+
+  .ticket-info h3 { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+  .ticket-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .ticket-sub { font-size: 12px; color: var(--text-muted); }
+  .ticket-due { font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
+
+  .ticket-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+  .btn-icon { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 5px 10px; font-family: var(--sans); font-weight: 500; transition: all .15s; white-space: nowrap; }
+  .btn-icon:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-icon.d:hover { border-color: var(--danger); color: var(--danger); }
+  .btn-icon.p:hover { border-color: var(--success); color: var(--success); }
+
+  .status-select { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-family: var(--mono); font-size: 11px; padding: 5px 8px; cursor: pointer; outline: none; transition: all .15s; }
+  .status-select:focus { border-color: var(--accent); }
+  .status-select.ss-Baru { border-color: rgba(79,142,247,.5); color: var(--accent); }
+  .status-select.ss-Dijadwalkan { border-color: rgba(79,201,247,.5); color: var(--info); }
+  .status-select.ss-Selesai { border-color: rgba(79,214,142,.5); color: var(--success); }
+  .status-select.ss-Cancel { border-color: rgba(247,95,95,.5); color: var(--danger); }
+
+  /* PAGINATION */
+  .list-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; gap: 12px; flex-wrap: wrap; padding-bottom: 32px; }
+  .perpage-row { display: flex; align-items: center; gap: 8px; }
+  .perpage-label { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+  .perpage-sel { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; padding: 5px 10px; cursor: pointer; outline: none; }
+  .pg-info { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+  .pagination { display: flex; gap: 4px; align-items: center; }
+  .pg-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 500; padding: 6px 12px; transition: all .15s; min-width: 36px; text-align: center; }
+  .pg-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .pg-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pg-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+  /* EMPTY */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: none; align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(4px); padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 560px; overflow: hidden; animation: modalIn .2s ease; }
+  @keyframes modalIn { from { opacity:0; transform:scale(.95) translateY(10px); } to { opacity:1; transform:none; } }
+  .modal-header { background: var(--surface2); border-bottom: 1px solid var(--border); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .modal-header h2 { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase; }
+  .modal-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; padding: 0 4px; line-height: 1; }
+  .modal-close:hover { color: var(--text); }
+  .modal-body { padding: 20px; }
+  .ticket-text-area { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--mono); font-size: 12.5px; line-height: 1.7; padding: 16px; width: 100%; min-height: 300px; resize: none; outline: none; }
+  .modal-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+  .btn-copy { background: var(--accent); border: none; border-radius: 8px; color: #fff; cursor: pointer; font-family: var(--sans); font-size: 13px; font-weight: 600; padding: 10px 20px; transition: all .15s; display: flex; align-items: center; gap: 6px; }
+  .btn-copy:hover { background: #3a7de8; }
+  .btn-cancel { background: none; border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); cursor: pointer; font-family: var(--sans); font-size: 13px; padding: 10px 16px; transition: all .15s; }
+  .btn-cancel:hover { border-color: var(--text-muted); color: var(--text); }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 700px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .form-group.full { grid-column: 1; }
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    header { padding: 0 16px; }
+    .page { padding: 16px; }
+    .ticket-card { grid-template-columns: 1fr; }
+    .toolbar-right { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">TICKET<span>/SYS</span></div>
+  <nav>
+    <button class="active" onclick="showPage('form',this)">＋ Buat Tiket</button>
+    <button onclick="showPage('list',this)">📋 Riwayat</button>
+  </nav>
+  <div class="header-right">
+    <span class="ticket-count" id="total-count">0 tiket</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- ═══ FORM ═══ -->
+  <div class="page active" id="page-form">
+    <div class="page-title">Formulir Permintaan Baru</div>
+    <div class="form-grid">
+
+      <div class="form-group">
+        <label>Nama Project <span class="req">*</span></label>
+        <input type="text" id="f-project" placeholder="Nama project…">
+      </div>
+
+      <div class="form-group">
+        <label>Nama Pemohon <span class="req">*</span></label>
+        <div class="pemohon-block">
+          <div class="pemohon-name-row">
+            <input type="text" id="f-pemohon" placeholder="Nama lengkap pemohon…">
+            <div class="role-toggle">
+              <button class="role-btn active" data-role="Komersial" onclick="setRole(this)">Komersial</button>
+              <button class="role-btn" data-role="PIC Project" onclick="setRole(this)">PIC Project</button>
+            </div>
+          </div>
+          <div class="wa-row">
+            <span class="wa-prefix">+62</span>
+            <input type="tel" id="f-wa" placeholder="8xx-xxxx-xxxx (nomor WhatsApp pemohon)">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Nama Outlet <span class="req">*</span></label>
+        <input type="text" id="f-outlet" placeholder="Nama outlet…">
+      </div>
+
+      <div class="form-group">
+        <label>Alamat Outlet <span class="req">*</span></label>
+        <input type="text" id="f-alamat" placeholder="Alamat lengkap outlet…">
+      </div>
+
+      <div class="form-group">
+        <label>Jenis Permintaan <span class="req">*</span></label>
+        <div class="jenis-row">
+          <select id="f-jenis" onchange="checkLainnya()">
+            <option value="">Pilih jenis…</option>
+            <option value="Komplain">Komplain</option>
+            <option value="Survey">Survey</option>
+            <option value="Lainnya">Lainnya…</option>
+          </select>
+          <input type="text" id="lainnya-input" placeholder="Ketik jenis permintaan…">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Due Date</label>
+        <input type="date" id="f-duedate">
+      </div>
+
+      <div class="form-group full">
+        <label>Detail Permintaan <span class="req">*</span></label>
+        <textarea id="f-detail" placeholder="Deskripsikan permintaan secara lengkap…"></textarea>
+      </div>
+
+      <div class="form-group full">
+        <label>Priority Level</label>
+        <div class="priority-row">
+          <button class="priority-btn" data-p="3" onclick="setPriority(this)">P3 <span class="priority-label">Normal</span></button>
+          <button class="priority-btn" data-p="4" onclick="setPriority(this)">P4 <span class="priority-label">High</span></button>
+          <button class="priority-btn" data-p="5" onclick="setPriority(this)">P5 <span class="priority-label">Critical</span></button>
+        </div>
+      </div>
+
+      <div class="form-group full">
+        <label>Catatan Penting</label>
+        <textarea id="f-catatan" placeholder="Informasi tambahan, referensi, atau hal yang perlu diperhatikan…" style="min-height:70px"></textarea>
+      </div>
+
+    </div>
+    <div class="form-footer">
+      <button class="btn-reset" onclick="resetForm()">Reset</button>
+      <button class="btn-submit" id="btn-submit-main" onclick="submitTicket()"><span>🎫</span> Buat Tiket</button>
+    </div>
+  </div>
+
+  <!-- ═══ LIST ═══ -->
+  <div class="page" id="page-list">
+    <div class="page-title">Riwayat Tiket</div>
+
+    <div class="stats-bar">
+      <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value c-accent" id="stat-total">0</div></div>
+      <div class="stat-card"><div class="stat-label">Baru</div><div class="stat-value c-accent" id="stat-baru">0</div></div>
+      <div class="stat-card"><div class="stat-label">Dijadwalkan</div><div class="stat-value c-info" id="stat-dijadwalkan">0</div></div>
+      <div class="stat-card"><div class="stat-label">Selesai</div><div class="stat-value c-success" id="stat-selesai">0</div></div>
+      <div class="stat-card"><div class="stat-label">Cancel</div><div class="stat-value c-danger" id="stat-cancel">0</div></div>
+    </div>
+
+    <div class="list-toolbar">
+      <input class="search-box" id="search-box" type="text" placeholder="🔍  Cari ID tiket, project, pemohon, outlet, detail…" oninput="goPage(1)">
+      <select class="filter-select" id="filter-jenis" onchange="goPage(1)">
+        <option value="">Semua Jenis</option>
+        <option value="Komplain">Komplain</option>
+        <option value="Survey">Survey</option>
+        <option value="Lainnya">Lainnya</option>
+      </select>
+      <select class="filter-select" id="filter-priority" onchange="goPage(1)">
+        <option value="">Semua Priority</option>
+        <option value="3">P3 Normal</option>
+        <option value="4">P4 High</option>
+        <option value="5">P5 Critical</option>
+      </select>
+      <select class="filter-select" id="filter-status" onchange="goPage(1)">
+        <option value="">Semua Status</option>
+        <option value="Baru">Baru</option>
+        <option value="Dijadwalkan">Dijadwalkan</option>
+        <option value="Selesai">Selesai</option>
+        <option value="Cancel">Cancel</option>
+      </select>
+      <div class="toolbar-right">
+        <button class="btn-sm" onclick="exportData()">⬇ Export JSON</button>
+        <label class="btn-sm" style="cursor:pointer">⬆ Import JSON<input type="file" accept=".json" style="display:none" onchange="importData(event)"></label>
+        <button class="btn-sm d" onclick="clearAll()">🗑 Hapus Semua</button>
+      </div>
+    </div>
+
+    <div id="ticket-list"></div>
+
+    <div class="list-footer">
+      <div class="perpage-row">
+        <span class="perpage-label">Tampilkan</span>
+        <select class="perpage-sel" id="perpage-sel" onchange="changePerPage()">
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+        <span class="perpage-label">per halaman</span>
+      </div>
+      <span class="pg-info" id="pg-info"></span>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Cetak Tiket</h2>
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div class="modal-body">
+      <textarea class="ticket-text-area" id="ticket-text" readonly></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModalDirect()">Tutup</button>
+      <button class="btn-copy" onclick="copyTicket()">📋 Copy Semua</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────
+let tickets = [];
+try { tickets = JSON.parse(localStorage.getItem('tickets_v3') || '[]'); } catch(e) {}
+
+// Migrate from v2 if needed
+if (tickets.length === 0) {
+  try {
+    const v2 = localStorage.getItem('tickets_v2');
+    if (v2) {
+      const old = JSON.parse(v2);
+      if (Array.isArray(old) && old.length) {
+        tickets = old.map(t => ({ ...t, status: t.status || 'Baru', wa: t.wa || t.kontak || '' }));
+        localStorage.setItem('tickets_v3', JSON.stringify(tickets));
+      }
+    }
+  } catch(e) {}
+}
+
+let selectedRole = 'Komersial';
+let selectedPriority = null;
+let editingId = null;
+let currentPage = 1;
+let perPage = 10;
+
+// ─── UTILS ───────────────────────────────────────────────────────────────
+function save() { localStorage.setItem('tickets_v3', JSON.stringify(tickets)); updateCount(); }
+
+function genId() {
+  const n = new Date(), p = x => String(x).padStart(2,'0');
+  return `TKT-${n.getFullYear()}${p(n.getMonth()+1)}${p(n.getDate())}-${String(Math.floor(Math.random()*900)+100)}`;
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' '+type : '');
+  setTimeout(() => { t.className = 'toast'; }, 2800);
+}
+
+function updateCount() {
+  document.getElementById('total-count').textContent = tickets.length + ' tiket';
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── NAV ─────────────────────────────────────────────────────────────────
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'list') { renderStats(); renderList(); }
+}
+
+function showPageDirect(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  const btns = document.querySelectorAll('nav button');
+  if (name === 'form' && btns[0]) btns[0].classList.add('active');
+  if (name === 'list' && btns[1]) btns[1].classList.add('active');
+}
+
+// ─── FORM ─────────────────────────────────────────────────────────────────
+function setRole(btn) {
+  document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedRole = btn.dataset.role;
+}
+
+function setPriority(btn) {
+  document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedPriority = btn.dataset.p;
+}
+
+function checkLainnya() {
+  const v = document.getElementById('f-jenis').value;
+  const el = document.getElementById('lainnya-input');
+  el.style.display = v === 'Lainnya' ? 'block' : 'none';
+  if (v !== 'Lainnya') el.value = '';
+}
+
+function resetForm() {
+  ['f-project','f-pemohon','f-wa','f-outlet','f-alamat','f-detail','f-catatan'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('f-jenis').value = '';
+  document.getElementById('f-duedate').value = '';
+  document.getElementById('lainnya-input').style.display = 'none';
+  document.getElementById('lainnya-input').value = '';
+  document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.role-btn[data-role="Komersial"]').classList.add('active');
+  selectedRole = 'Komersial';
+  selectedPriority = null;
+  editingId = null;
+  document.getElementById('btn-submit-main').innerHTML = '<span>🎫</span> Buat Tiket';
+}
+
+function submitTicket() {
+  const project  = document.getElementById('f-project').value.trim();
+  const pemohon  = document.getElementById('f-pemohon').value.trim();
+  const wa       = document.getElementById('f-wa').value.trim().replace(/\D/g,'');
+  const outlet   = document.getElementById('f-outlet').value.trim();
+  const alamat   = document.getElementById('f-alamat').value.trim();
+  const jenisRaw = document.getElementById('f-jenis').value;
+  const lainnya  = document.getElementById('lainnya-input').value.trim();
+  const jenis    = jenisRaw === 'Lainnya' ? (lainnya || 'Lainnya') : jenisRaw;
+  const detail   = document.getElementById('f-detail').value.trim();
+  const duedate  = document.getElementById('f-duedate').value;
+  const catatan  = document.getElementById('f-catatan').value.trim();
+
+  if (!project || !pemohon || !outlet || !alamat || !jenis || !detail) {
+    showToast('Lengkapi field wajib terlebih dahulu', 'error'); return;
+  }
+
+  const existing = editingId ? tickets.find(t => t.id === editingId) : null;
+  const ticket = {
+    id: editingId || genId(),
+    createdAt: existing ? existing.createdAt : new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    status: existing ? existing.status : 'Baru',
+    project, pemohon, role: selectedRole, wa,
+    outlet, alamat, jenis, detail, duedate,
+    priority: selectedPriority || '3', catatan,
+  };
+
+  if (editingId) {
+    tickets = tickets.map(t => t.id === editingId ? ticket : t);
+    showToast('Tiket diperbarui ✓');
+  } else {
+    tickets.unshift(ticket);
+    showToast('Tiket dibuat: ' + ticket.id);
+  }
+  save(); resetForm();
+}
+
+// ─── STATUS ───────────────────────────────────────────────────────────────
+function changeStatus(id, newStatus) {
+  tickets = tickets.map(t => t.id === id ? { ...t, status: newStatus, updatedAt: new Date().toISOString() } : t);
+  save(); renderStats(); renderList();
+  showToast('Status → ' + newStatus, 'info');
+}
+
+// ─── STATS ────────────────────────────────────────────────────────────────
+function renderStats() {
+  document.getElementById('stat-total').textContent       = tickets.length;
+  document.getElementById('stat-baru').textContent        = tickets.filter(t => t.status === 'Baru').length;
+  document.getElementById('stat-dijadwalkan').textContent = tickets.filter(t => t.status === 'Dijadwalkan').length;
+  document.getElementById('stat-selesai').textContent     = tickets.filter(t => t.status === 'Selesai').length;
+  document.getElementById('stat-cancel').textContent      = tickets.filter(t => t.status === 'Cancel').length;
+  updateCount();
+}
+
+// ─── PAGINATION ───────────────────────────────────────────────────────────
+function goPage(n) { currentPage = n; renderList(); }
+
+function changePerPage() {
+  perPage = parseInt(document.getElementById('perpage-sel').value);
+  currentPage = 1; renderList();
+}
+
+// ─── RENDER LIST ──────────────────────────────────────────────────────────
+function renderList() {
+  const q  = document.getElementById('search-box').value.toLowerCase();
+  const fj = document.getElementById('filter-jenis').value;
+  const fp = document.getElementById('filter-priority').value;
+  const fs = document.getElementById('filter-status').value;
+
+  let filtered = tickets.filter(t => {
+    const hay = [t.id, t.project, t.pemohon, t.outlet, t.jenis, t.detail, t.wa||'', t.alamat||''].join(' ').toLowerCase();
+    if (q && !hay.includes(q)) return false;
+    if (fj) {
+      if (fj === 'Lainnya') { if (t.jenis === 'Komplain' || t.jenis === 'Survey') return false; }
+      else if (t.jenis !== fj) return false;
+    }
+    if (fp && t.priority !== fp) return false;
+    if (fs && (t.status || 'Baru') !== fs) return false;
+    return true;
+  });
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * perPage;
+  const slice = filtered.slice(start, start + perPage);
+
+  const list = document.getElementById('ticket-list');
+
+  if (!total) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Tidak ada tiket ditemukan</p></div>';
+    document.getElementById('pagination').innerHTML = '';
+    document.getElementById('pg-info').textContent = '';
+    return;
+  }
+
+  const pLabels = { '3':'Normal', '4':'High', '5':'Critical' };
+  const statusList = ['Baru','Dijadwalkan','Selesai','Cancel'];
+
+  list.innerHTML = slice.map(t => {
+    const status = t.status || 'Baru';
+    const dateStr = new Date(t.createdAt).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
+    const due = t.duedate ? `<span class="ticket-due">Due: ${esc(t.duedate)}</span>` : '';
+    const opts = statusList.map(s => `<option value="${s}"${status===s?' selected':''}>${s}</option>`).join('');
+    const waStr = t.wa ? ` · +62${esc(t.wa)}` : '';
+
+    return `<div class="ticket-card s-${esc(status)}" onclick="openPrintModal('${esc(t.id)}')">
+      <div class="ticket-id-col">
+        <span class="ticket-id">${esc(t.id)}</span>
+        <span class="ticket-date-sm">${dateStr}</span>
+        <span class="badge badge-s-${esc(status)}">${esc(status)}</span>
+      </div>
+      <div class="ticket-info">
+        <h3>${esc(t.project)} — ${esc(t.outlet)}</h3>
+        <div class="ticket-meta">
+          <span class="badge badge-jenis">${esc(t.jenis)}</span>
+          <span class="badge badge-p${esc(t.priority)}">P${esc(t.priority)} ${esc(pLabels[t.priority]||'')}</span>
+          <span class="ticket-sub">${esc(t.pemohon)} · ${esc(t.role)}${waStr}</span>
+          ${due}
+        </div>
+      </div>
+      <div class="ticket-actions" onclick="event.stopPropagation()">
+        <select class="status-select ss-${esc(status)}" onchange="changeStatus('${esc(t.id)}',this.value)">${opts}</select>
+        <button class="btn-icon p" onclick="openPrintModal('${esc(t.id)}')">🖨 Cetak</button>
+        <button class="btn-icon" onclick="editTicket('${esc(t.id)}')">✏ Edit</button>
+        <button class="btn-icon d" onclick="deleteTicket('${esc(t.id)}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Pagination info
+  const end = Math.min(start + perPage, total);
+  document.getElementById('pg-info').textContent = `Menampilkan ${start+1}–${end} dari ${total} tiket`;
+
+  // Pagination buttons
+  const pg = document.getElementById('pagination');
+  if (totalPages <= 1) { pg.innerHTML = ''; return; }
+
+  const range = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= currentPage-2 && i <= currentPage+2)) {
+      range.push(i);
+    } else if (range[range.length-1] !== '…') {
+      range.push('…');
+    }
+  }
+
+  let html = `<button class="pg-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>`;
+  range.forEach(r => {
+    if (r === '…') html += `<span class="pg-btn" style="pointer-events:none;opacity:.35">…</span>`;
+    else html += `<button class="pg-btn ${r===currentPage?'active':''}" onclick="goPage(${r})">${r}</button>`;
+  });
+  html += `<button class="pg-btn" onclick="goPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>›</button>`;
+  pg.innerHTML = html;
+
+  renderStats();
+}
+
+// ─── PRINT MODAL ──────────────────────────────────────────────────────────
+function openPrintModal(id) {
+  const t = tickets.find(x => x.id === id);
+  if (!t) return;
+  const dateStr = new Date(t.createdAt).toLocaleString('id-ID');
+  const pLabels = {'3':'Normal','4':'High','5':'Critical'};
+  const waStr = t.wa ? `+62${t.wa}` : '-';
+
+  const text = [
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    '🎫 TIKET PERMINTAAN',
+    `Nomor Tiket      : ${t.id}`,
+    `Dibuat           : ${dateStr}`,
+    `Status           : ${t.status || 'Baru'}`,
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    `Nama Project     : ${t.project}`,
+    `Nama Pemohon     : ${t.pemohon} (${t.role})`,
+    `No. WhatsApp     : ${waStr}`,
+    `Nama Outlet      : ${t.outlet}`,
+    `Alamat Outlet    : ${t.alamat}`,
+    `Jenis Permintaan : ${t.jenis}`,
+    `Due Date         : ${t.duedate || '-'}`,
+    `Priority Level   : P${t.priority} – ${pLabels[t.priority]||''}`,
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    'Detail Permintaan:',
+    t.detail,
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    'Catatan Penting:',
+    t.catatan || '(tidak ada)',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+  ].join('\n');
+
+  document.getElementById('ticket-text').value = text;
+  document.getElementById('modal-title').textContent = 'Tiket: ' + t.id;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal(e) { if (e.target === document.getElementById('modal-overlay')) closeModalDirect(); }
+function closeModalDirect() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+function copyTicket() {
+  const text = document.getElementById('ticket-text').value;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('Teks tiket berhasil dicopy! ✓'); closeModalDirect();
+  }).catch(() => {
+    document.getElementById('ticket-text').select();
+    document.execCommand('copy');
+    showToast('Teks tiket berhasil dicopy! ✓'); closeModalDirect();
+  });
+}
+
+// ─── EDIT ─────────────────────────────────────────────────────────────────
+function editTicket(id) {
+  const t = tickets.find(x => x.id === id);
+  if (!t) return;
+  showPageDirect('form');
+
+  document.getElementById('f-project').value = t.project;
+  document.getElementById('f-pemohon').value = t.pemohon;
+  document.getElementById('f-wa').value      = t.wa || '';
+  document.getElementById('f-outlet').value  = t.outlet;
+  document.getElementById('f-alamat').value  = t.alamat;
+  document.getElementById('f-detail').value  = t.detail;
+  document.getElementById('f-duedate').value = t.duedate || '';
+  document.getElementById('f-catatan').value = t.catatan || '';
+
+  document.querySelectorAll('.role-btn').forEach(b => b.classList.toggle('active', b.dataset.role === t.role));
+  selectedRole = t.role;
+
+  if (t.jenis === 'Komplain' || t.jenis === 'Survey') {
+    document.getElementById('f-jenis').value = t.jenis;
+    document.getElementById('lainnya-input').style.display = 'none';
+  } else {
+    document.getElementById('f-jenis').value = 'Lainnya';
+    document.getElementById('lainnya-input').value = t.jenis;
+    document.getElementById('lainnya-input').style.display = 'block';
+  }
+
+  document.querySelectorAll('.priority-btn').forEach(b => b.classList.toggle('active', b.dataset.p === t.priority));
+  selectedPriority = t.priority;
+
+  editingId = id;
+  document.getElementById('btn-submit-main').innerHTML = '<span>💾</span> Simpan Perubahan';
+  window.scrollTo(0, 0);
+}
+
+// ─── DELETE ───────────────────────────────────────────────────────────────
+function deleteTicket(id) {
+  if (!confirm('Hapus tiket ini?')) return;
+  tickets = tickets.filter(t => t.id !== id);
+  save(); renderList();
+  showToast('Tiket dihapus');
+}
+
+// ─── EXPORT / IMPORT ──────────────────────────────────────────────────────
+function exportData() {
+  const blob = new Blob([JSON.stringify(tickets, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tiket-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  showToast('Data berhasil diekspor ✓');
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!Array.isArray(data)) throw new Error();
+      if (!confirm('Import ' + data.length + ' tiket? Data yang ada akan digabung.')) return;
+      const existing = new Set(tickets.map(t => t.id));
+      const newOnes = data.filter(t => !existing.has(t.id)).map(t => ({ ...t, status: t.status || 'Baru' }));
+      tickets = [...newOnes, ...tickets];
+      save(); renderList();
+      showToast(newOnes.length + ' tiket baru diimport ✓');
+    } catch(err) { showToast('File JSON tidak valid', 'error'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function clearAll() {
+  if (!confirm('Hapus SEMUA tiket? Aksi ini tidak dapat dibatalkan.')) return;
+  tickets = []; save(); renderList();
+  showToast('Semua tiket dihapus');
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────
+updateCount();
+</script>
+</body>
+</html>
